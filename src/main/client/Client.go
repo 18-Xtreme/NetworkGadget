@@ -75,11 +75,15 @@ func OtherWayForward(src, dst net.Conn) (written int64, err error) {
 }
 
 func waitingForServerNotice(base *model.ConfigBase) {
-	/*var tcpAddr *net.TCPAddr
-	// 连接服务端通知端口
-	tcpAddr, _ = net.ResolveTCPAddr("tcp", base.DstAddr)
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)*/
-	conn, err := tls.Dial("tcp", base.DstAddr, config)
+	var conn net.Conn
+	var err error
+
+	if base.UseTLS {
+		conn, err = tls.Dial("tcp", base.DstAddr, config)
+	} else {
+		conn, err = net.Dial("tcp", base.DstAddr)
+	}
+
 	if err != nil {
 		log.Printf("[-] 接入服务端通知中心(%s)错误: %s\n", base.DstAddr, err.Error())
 		return
@@ -119,9 +123,12 @@ func handleLocalForwardingConnection(base *model.ConfigBase) {
 	// 判断是否接入远程连接
 	if local != nil && remote != nil {
 		// 流复制
-		// connectCopy(local, remote)
-		go OtherWayForward(remote, local)
-		go OtherWayForward(local, remote)
+		if base.UseTLS {
+			go OtherWayForward(remote, local)
+			go OtherWayForward(local, remote)
+		} else {
+			connectCopy(local, remote)
+		}
 	} else {
 		if local != nil {
 			err := local.Close()
@@ -139,8 +146,8 @@ func handleLocalForwardingConnection(base *model.ConfigBase) {
 	}
 }
 
-func connectCopy(local, remote *net.TCPConn) {
-	copySwap := func(local, remote *net.TCPConn) {
+func connectCopy(local, remote net.Conn) {
+	copySwap := func(local, remote net.Conn) {
 		defer local.Close()
 		defer remote.Close()
 
@@ -157,11 +164,9 @@ func connectCopy(local, remote *net.TCPConn) {
 
 }
 
-func connectLocal(base *model.ConfigBase) *net.TCPConn {
-	var tcpAddr *net.TCPAddr
+func connectLocal(base *model.ConfigBase) net.Conn {
 	// 连接本地端口
-	tcpAddr, _ = net.ResolveTCPAddr("tcp", base.SrcAddr)
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	conn, err := net.Dial("tcp", base.SrcAddr)
 	if err != nil {
 		log.Printf("[-] 连接本地端口%d错误: %s\n", base.SrcPort, err.Error())
 		return nil
@@ -172,12 +177,15 @@ func connectLocal(base *model.ConfigBase) *net.TCPConn {
 	return conn
 }
 
-func connectRemote(base *model.ConfigBase) *tls.Conn {
-	/*var tcpAddr *net.TCPAddr
-	// 连接远程转发端口
-	tcpAddr, _ = net.ResolveTCPAddr("tcp", base.DstAddr)
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)*/
-	conn, err := tls.Dial("tcp", base.DstAddr, config)
+func connectRemote(base *model.ConfigBase) (conn net.Conn) {
+	var err error
+
+	if base.UseTLS {
+		conn, err = tls.Dial("tcp", base.DstAddr, config)
+	} else {
+		conn, err = net.Dial("tcp", base.DstAddr)
+	}
+
 	if err != nil {
 		log.Printf("[-] 连接服务端转发端口(%d)错误: %s\n", base.DstPort, err.Error())
 		return nil
@@ -188,10 +196,12 @@ func connectRemote(base *model.ConfigBase) *tls.Conn {
 }
 
 func MainClient(base *model.ConfigBase) {
-	config = ConfigClientTLS()
-	if config == nil {
-		log.Printf("[-] 配置客户端tls密钥错误.\n")
-		return
+	if base.UseTLS {
+		config = ConfigClientTLS()
+		if config == nil {
+			log.Printf("[-] 配置客户端tls密钥错误.\n")
+			return
+		}
 	}
 
 	waitingForServerNotice(base)

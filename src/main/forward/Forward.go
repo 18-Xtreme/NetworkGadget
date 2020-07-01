@@ -10,8 +10,23 @@ import (
 	"sync"
 )
 
-func ListenPortToForwardConnect(base *model.ConfigBase) {
-	listen, err := net.Listen("tcp4", base.SrcAddr)
+var config *tls.Config = nil
+
+func ListenPortToForwardConnect(base *model.ConfigBase, index string) {
+	var listen net.Listener
+	var err error
+
+	if base.UseTLS && index != "2" {
+		config = client.ConfigClientTLS()
+		if config == nil {
+			log.Printf("[-] 配置客户端tls密钥错误.\n")
+			return
+		}
+		listen, err = tls.Listen("tcp", base.SrcAddr, config)
+	} else {
+		listen, err = net.Listen("tcp", base.SrcAddr)
+	}
+
 	if err != nil {
 		log.Printf("[x] 监听端口%d错误:%s\n", base.SrcPort, err.Error())
 		return
@@ -26,20 +41,30 @@ func ListenPortToForwardConnect(base *model.ConfigBase) {
 			continue
 		}
 
-		go handleForward(accept, base)
+		go handleForward(accept, base, index)
 	}
 }
 
-func handleForward(accept net.Conn, base *model.ConfigBase) {
+func handleForward(accept net.Conn, base *model.ConfigBase, index string) {
 	defer accept.Close()
 
-	//netForward, err := net.Dial("tcp4", base.DstAddr)
-	config := client.ConfigClientTLS()
-	if config == nil {
-		log.Printf("[-] 配置客户端tls密钥错误.\n")
-		return
+	var netForward net.Conn
+	var err error
+
+	if base.UseTLS && index != "1" {
+		if index == "2" {
+			config = client.ConfigClientTLS()
+			if config == nil {
+				log.Printf("[-] 配置客户端tls密钥错误.\n")
+				return
+			}
+		}
+		netForward, err = tls.Dial("tcp", base.DstAddr, config)
+
+	} else {
+		netForward, err = net.Dial("tcp", base.DstAddr)
 	}
-	netForward, err := tls.Dial("tcp", base.DstAddr, config)
+
 	if err != nil {
 		log.Printf("[x] 连接端口%d错误:%s\n", base.DstPort, err.Error())
 		return
@@ -49,29 +74,30 @@ func handleForward(accept net.Conn, base *model.ConfigBase) {
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
 
-	/*
+	if base.UseTLS {
+		go func() {
+			defer wg.Done()
+			client.OtherWayForward(netForward, accept)
+		}()
+
+		go func() {
+			defer wg.Done()
+			client.OtherWayForward(accept, netForward)
+		}()
+
+	} else {
 		go normalForward(netForward, accept, wg)
 		go normalForward(accept, netForward, wg)
-	*/
-
-	go func() {
-		defer wg.Done()
-		client.OtherWayForward(netForward, accept)
-	}()
-
-	go func() {
-		defer wg.Done()
-		client.OtherWayForward(accept, netForward)
-	}()
+	}
 
 	wg.Wait()
 }
 
 func normalForward(src, dst net.Conn, wg *sync.WaitGroup) {
 	defer wg.Done()
-	written, err := io.Copy(dst, src)
+	_, err := io.Copy(dst, src)
 	if err != nil {
 		log.Printf("[x] 流量转发错误:%s\n", err.Error())
 	}
-	log.Printf("%s -> %s  %d/bytes", dst.RemoteAddr(), src.RemoteAddr(), written)
+	//log.Printf("%s -> %s  %d/bytes", dst.RemoteAddr(), src.RemoteAddr(), written)
 }

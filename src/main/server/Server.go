@@ -26,7 +26,7 @@ func configServerTLS() {
 	path := "certs/"
 	cert, err := tls.LoadX509KeyPair(path+"server.pem", path+"server.key")
 	if err != nil {
-		log.Println(err)
+		log.Printf("加载服务端tls证书错误: %s\n", err.Error())
 		return
 	}
 	certBytes, err := ioutil.ReadFile(path + "client.pem")
@@ -48,11 +48,16 @@ func configServerTLS() {
 }
 
 func dealingWithClientConnection(base *model.ConfigBase) {
-	/*var tcpAddr *net.TCPAddr
-	// 监听来自客户端数据
-	tcpAddr, _ = net.ResolveTCPAddr("tcp", base.SrcAddr)
-	tcpListener, err := net.ListenTCP("tcp", tcpAddr)*/
-	tcpListener, err := tls.Listen("tcp", base.SrcAddr, config)
+	var tcpListener net.Listener
+	var err error
+
+	if base.UseTLS {
+		tcpListener, err = tls.Listen("tcp", base.SrcAddr, config)
+	} else {
+		// 监听来自客户端数据
+		tcpListener, err = net.Listen("tcp", base.SrcAddr)
+	}
+
 	if err != nil {
 		log.Printf("[-] 监听%d端口错误: %s\n", base.SrcPort, err.Error())
 		return
@@ -83,7 +88,7 @@ func saveForForwardingConnection(accept net.Conn) {
 }
 
 func informClientToCreateConnection(msg string) {
-	log.Printf("[*] 正在发送信息: %s\n", msg)
+	log.Printf("[*] 正在通知客户端创建连接\n")
 	if notice != nil {
 		_, err := notice.Write([]byte(msg))
 		if err != nil {
@@ -95,11 +100,16 @@ func informClientToCreateConnection(msg string) {
 }
 
 func forwardingClientConnection(base *model.ConfigBase) {
-	/*var tcpAddr *net.TCPAddr
-	// 监听转发端口
-	tcpAddr, _ = net.ResolveTCPAddr("tcp", base.DstAddr)
-	tcpListener, err := net.ListenTCP("tcp", tcpAddr)*/
-	tcpListener, err := tls.Listen("tcp", base.DstAddr, config)
+	var tcpListener net.Listener
+	var err error
+
+	if base.UseTLS {
+		tcpListener, err = tls.Listen("tcp", base.DstAddr, config)
+	} else {
+		// 监听客户端待转发数据
+		tcpListener, err = net.Listen("tcp", base.DstAddr)
+	}
+
 	if err != nil {
 		log.Printf("[-] 监听%d端口错误: %s\n", base.DstPort, err.Error())
 		return
@@ -244,10 +254,12 @@ func releaseTimeoutConnection() {
 }
 
 func MainServer(base *model.ConfigBase) {
-	configServerTLS()
-	if config == nil {
-		log.Printf("[-] 配置服务端tls密钥错误.\n")
-		return
+	if base.UseTLS {
+		configServerTLS()
+		if config == nil {
+			log.Printf("[-] 配置服务端tls密钥错误.\n")
+			return
+		}
 	}
 
 	// 监听服务端口

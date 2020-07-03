@@ -6,7 +6,6 @@ import (
 	"NetworkGadget/src/main/model"
 	"NetworkGadget/src/main/proxy"
 	"NetworkGadget/src/main/server"
-	"NetworkGadget/src/test"
 	"fmt"
 	"os"
 	"strconv"
@@ -19,16 +18,15 @@ var (
 )
 
 func main() {
-	//start()
-	test.TestMain3()
+	start()
 }
 
 func start() {
 	base := new(model.ConfigBase)
 	base.UseTLS = false
 	l, t := 2, 3
+	var index = "0"
 	if (len(os.Args) == 4 || len(os.Args) == 6) && os.Args[1] == "-forward" {
-		var index = "0"
 		if os.Args[2] == "--tls" {
 			base.UseTLS = true
 			index = os.Args[3]
@@ -37,12 +35,14 @@ func start() {
 		localAddr = os.Args[l]
 		targetAddr = os.Args[t]
 		fillStructure(base)
-		forward.ListenPortToForwardConnect(base, index)
+		forward.ListenPortToForwardConnect(base, index, false)
 	} else if len(os.Args) == 4 || len(os.Args) == 5 {
 		if os.Args[2] == "--tls" {
 			base.UseTLS = true
 			l, t = 3, 4
+			index = "2"
 		}
+
 		if os.Args[1] == "-listen" {
 			targetAddr = os.Args[t]
 			localAddr = os.Args[l]
@@ -53,6 +53,11 @@ func start() {
 			localAddr = os.Args[t]
 			fillStructure(base)
 			client.MainClient(base)
+		} else if os.Args[1] == "-proxy-local" {
+			targetAddr = os.Args[t]
+			localAddr = os.Args[l]
+			fillStructure(base)
+			forward.ListenPortToForwardConnect(base, index, true)
 		}
 	} else if (len(os.Args) == 3 || len(os.Args) == 4) && os.Args[1] == "-proxy" {
 		if os.Args[2] == "--tls" {

@@ -12,7 +12,7 @@ import (
 
 var config *tls.Config = nil
 
-func ListenPortToForwardConnect(base *model.ConfigBase, index string) {
+func ListenPortToForwardConnect(base *model.ConfigBase, index string, proxy bool) {
 	var listen net.Listener
 	var err error
 
@@ -41,11 +41,11 @@ func ListenPortToForwardConnect(base *model.ConfigBase, index string) {
 			continue
 		}
 
-		go handleForward(accept, base, index)
+		go handleForward(accept, base, index, proxy)
 	}
 }
 
-func handleForward(accept net.Conn, base *model.ConfigBase, index string) {
+func handleForward(accept net.Conn, base *model.ConfigBase, index string, proxy bool) {
 	defer accept.Close()
 
 	var netForward net.Conn
@@ -70,6 +70,13 @@ func handleForward(accept net.Conn, base *model.ConfigBase, index string) {
 		return
 	}
 	defer netForward.Close()
+
+	// 连接socks5代理时
+	if proxy {
+		// 读文件
+		// 配置协议
+		// 发送数据
+	}
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)

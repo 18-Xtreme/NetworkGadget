@@ -86,18 +86,18 @@ func handleForward(accept net.Conn, base *model.ConfigBase, index string) {
 		}()
 
 	} else {
-		go normalForward(netForward, accept, wg)
-		go normalForward(accept, netForward, wg)
+		go NormalForward(netForward, accept, wg)
+		go NormalForward(accept, netForward, wg)
 	}
 
 	wg.Wait()
 }
 
-func normalForward(src, dst net.Conn, wg *sync.WaitGroup) {
+func NormalForward(src, dst net.Conn, wg *sync.WaitGroup) {
 	defer wg.Done()
-	_, err := io.Copy(dst, src)
+	written, err := io.Copy(dst, src)
 	if err != nil {
 		log.Printf("[x] 流量转发错误:%s\n", err.Error())
 	}
-	//log.Printf("%s -> %s  %d/bytes", dst.RemoteAddr(), src.RemoteAddr(), written)
+	log.Printf("%s -> %s  %d/bytes", dst.RemoteAddr(), src.RemoteAddr(), written)
 }

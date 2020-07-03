@@ -1,7 +1,9 @@
 package test
 
 import (
+	"NetworkGadget/src/main/utils"
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -9,6 +11,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"strings"
 	"sync"
 )
 
@@ -254,19 +257,45 @@ func TestMain1() {
 }
 
 func TestMain2() {
-	listen, _ := net.Listen("tcp", ":5100")
+	listen, err := net.Listen("tcp", ":5100")
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	for {
 		accept, _ := listen.Accept()
-		buf := make([]byte, 512)
-		n, _ := accept.Read(buf)
-		log.Println(string(buf[:n]))
-		accept.Write([]byte("world\n"))
-		accept.Close()
+		buf := make([]byte, 4)
+		accept.Read(buf)
+		if string(buf) == "size" {
+			accept.Read(buf)
+			size := utils.BytesToInt16(buf)
+			log.Println("size: ", size)
+			data := make([]byte, size)
+			accept.Read(data)
+			list := strings.Split(string(data), ",")
+			log.Println(list)
+			log.Println("next: ", list[0])
+			list = append(list[:0], list[1:]...)
+			log.Println(list)
+		}
+
 	}
+	listen.Close()
 }
 
 func TestMain3() {
-	conn, _ := net.Dial("tcp", "192.168.3.123:3389")
-	conn.Write([]byte("hello1\n"))
-	conn.Close()
+	conn, err := net.Dial("tcp", "192.168.3.123:5100")
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+	a := []string{"127.0.0.1:1234", "127.0.0.1:1235", "127.0.0.1:1236"}
+	a = append(a[:0], a[1:]...)
+	buf := strings.Join(a, ",")
+	size := int16(len(buf))
+	length := utils.Int16ToBytes(size)
+	val := bytes.Join([][]byte{[]byte("size"), length, []byte(buf)}, []byte(""))
+	conn.Write(val)
+	log.Println(val)
+	log.Println(len(a))
 }

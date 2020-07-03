@@ -5,3 +5,8 @@ type ConfigBase struct {
 	SrcAddr, DstAddr string
 	SrcPort, DstPort int
 }
+
+type NextProxyNode struct {
+	NodeAddr string
+	NodePort int
+}

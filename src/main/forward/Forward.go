@@ -3,10 +3,13 @@ package forward
 import (
 	"NetworkGadget/src/main/client"
 	"NetworkGadget/src/main/model"
+	"NetworkGadget/src/main/utils"
+	"bytes"
 	"crypto/tls"
 	"io"
 	"log"
 	"net"
+	"strings"
 	"sync"
 )
 
@@ -34,6 +37,25 @@ func ListenPortToForwardConnect(base *model.ConfigBase, index string, proxy bool
 	defer listen.Close()
 	log.Printf("[*] 监听端口%d成功.\n", base.SrcPort)
 
+	// 连接socks5代理时
+	if proxy {
+		// 读文件
+		list := readProxyNodeConfigFile()
+		content := strings.Join(list, ",")
+		log.Printf("[+] 读取节点列表文件: %s\n", content)
+		// 配置协议
+		size := utils.Int16ToBytes(int16(len(content)))
+		written := bytes.Join([][]byte{[]byte("size"), size, []byte(content)}, []byte(""))
+		// 发送数据
+		netForward, err := connectRemoteHost(base, index)
+		_, err = netForward.Write(written)
+		if err != nil {
+			log.Printf("[-] 发送节点列表信息错误: %s\n", err.Error())
+		} else {
+			log.Printf("[+] 发送节点列表信息成功\n")
+		}
+	}
+
 	for {
 		accept, err := listen.Accept()
 		if err != nil {
@@ -41,42 +63,22 @@ func ListenPortToForwardConnect(base *model.ConfigBase, index string, proxy bool
 			continue
 		}
 
-		go handleForward(accept, base, index, proxy)
+		go handleForward(accept, base, index)
 	}
 }
 
-func handleForward(accept net.Conn, base *model.ConfigBase, index string, proxy bool) {
+func handleForward(accept net.Conn, base *model.ConfigBase, index string) {
 	defer accept.Close()
 
 	var netForward net.Conn
 	var err error
-
-	if base.UseTLS && index != "1" {
-		if index == "2" {
-			config = client.ConfigClientTLS()
-			if config == nil {
-				log.Printf("[-] 配置客户端tls密钥错误.\n")
-				return
-			}
-		}
-		netForward, err = tls.Dial("tcp", base.DstAddr, config)
-
-	} else {
-		netForward, err = net.Dial("tcp", base.DstAddr)
-	}
+	netForward, err = connectRemoteHost(base, index)
 
 	if err != nil {
 		log.Printf("[x] 连接端口%d错误:%s\n", base.DstPort, err.Error())
 		return
 	}
 	defer netForward.Close()
-
-	// 连接socks5代理时
-	if proxy {
-		// 读文件
-		// 配置协议
-		// 发送数据
-	}
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
@@ -107,4 +109,29 @@ func NormalForward(src, dst net.Conn, wg *sync.WaitGroup) {
 		log.Printf("[x] 流量转发错误:%s\n", err.Error())
 	}
 	log.Printf("%s -> %s  %d/bytes", dst.RemoteAddr(), src.RemoteAddr(), written)
+}
+
+func connectRemoteHost(base *model.ConfigBase, index string) (netForward net.Conn, err error) {
+	if base.UseTLS && index != "1" {
+		if index == "2" {
+			config = client.ConfigClientTLS()
+			if config == nil {
+				log.Printf("[-] 配置客户端tls密钥错误.\n")
+				return
+			}
+		}
+		netForward, err = tls.Dial("tcp", base.DstAddr, config)
+	} else {
+		netForward, err = net.Dial("tcp", base.DstAddr)
+	}
+
+	return netForward, err
+}
+
+func readProxyNodeConfigFile() (list []string) {
+	utils.ReadLine("proxy_node", func(bytes []byte) {
+		list = append(list, string(bytes))
+	})
+
+	return list
 }

@@ -22,29 +22,31 @@ var (
 	config                   *tls.Config = nil
 )
 
-func configServerTLS() {
+func ConfigServerTLS() *tls.Config {
 	path := "certs/"
 	cert, err := tls.LoadX509KeyPair(path+"server.pem", path+"server.key")
 	if err != nil {
-		log.Printf("加载服务端tls证书错误: %s\n", err.Error())
-		return
+		log.Printf("[-] 加载服务端tls证书错误: %s\n", err.Error())
+		return nil
 	}
 	certBytes, err := ioutil.ReadFile(path + "client.pem")
 	if err != nil {
 		log.Printf("[-] 读取cert.pem错误\n")
-		return
+		return nil
 	}
 	clientCertPool := x509.NewCertPool()
 	ok := clientCertPool.AppendCertsFromPEM(certBytes)
 	if !ok {
 		log.Printf("[-] 解析tls加密错误\n")
-		return
+		return nil
 	}
 	config = &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    clientCertPool,
 	}
+
+	return config
 }
 
 func dealingWithClientConnection(base *model.ConfigBase) {
@@ -255,7 +257,7 @@ func releaseTimeoutConnection() {
 
 func MainServer(base *model.ConfigBase) {
 	if base.UseTLS {
-		configServerTLS()
+		ConfigServerTLS()
 		if config == nil {
 			log.Printf("[-] 配置服务端tls密钥错误.\n")
 			return

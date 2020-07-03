@@ -18,7 +18,7 @@ func ConfigClientTLS() *tls.Config {
 	path := "certs/"
 	cert, err := tls.LoadX509KeyPair(path+"client.pem", path+"client.key")
 	if err != nil {
-		log.Println(err)
+		log.Printf("[-] 加载客户端tls证书错误: %s\n", err.Error())
 		return nil
 	}
 	certBytes, err := ioutil.ReadFile(path + "client.pem")

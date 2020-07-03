@@ -36,7 +36,7 @@ func start() {
 		targetAddr = os.Args[t]
 		fillStructure(base)
 		forward.ListenPortToForwardConnect(base, index, false)
-	} else if len(os.Args) == 4 || len(os.Args) == 5 {
+	} else if (len(os.Args) == 4 || len(os.Args) == 5) && os.Args[1] != "-proxy" {
 		if os.Args[2] == "--tls" {
 			base.UseTLS = true
 			l, t = 3, 4
@@ -53,7 +53,7 @@ func start() {
 			localAddr = os.Args[t]
 			fillStructure(base)
 			client.MainClient(base)
-		} else if os.Args[1] == "-proxy-local" {
+		} else if os.Args[1] == "-proxy--local" {
 			targetAddr = os.Args[t]
 			localAddr = os.Args[l]
 			fillStructure(base)
@@ -81,7 +81,8 @@ func usage() {
 	fmt.Println("  -forward [--tls (1|2|3)] <监听端口> <IP|转发端口>")
 	fmt.Println("  -listen [--tls] <监听端口> <转发端口>")
 	fmt.Println("  -connect [--tls] <IP|服务器转发端口> <IP|实际转发端口>")
-	fmt.Println("  -proxy [--tls] <IP|代理端口>")
+	fmt.Println("  -proxy [--tls] <IP|代理端口> <IP|服务器代理端口>")
+	fmt.Println("  --proxy-local [--tls] <IP|监听端口>")
 	fmt.Println("  --tls (1|2|3) 使用tls加密 (1:第一个端口加密||2:第二个端口加密||3:全部加密)")
 	fmt.Println("\n[例如:]")
 	fmt.Println("  ng -forward 1234 3389")
@@ -92,6 +93,7 @@ func usage() {
 	fmt.Println("  ng -connect 51007 3389")
 	fmt.Println("  ng -connect x.x.x.x:51007 x.x.x.x:3389")
 	fmt.Println("  ng -proxy 51007")
+	fmt.Println("  ng --proxy-local 51006 x.x.x.x:51007")
 	fmt.Println("  ng -proxy --tls 51007")
 }
 

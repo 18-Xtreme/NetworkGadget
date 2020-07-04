@@ -6,9 +6,11 @@ import (
 	"NetworkGadget/src/main/utils"
 	"bytes"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"log"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -41,13 +43,29 @@ func ListenPortToForwardConnect(base *model.ConfigBase, index string, proxy bool
 	if proxy {
 		// 读文件
 		list := readProxyNodeConfigFile()
+		if list == nil {
+			log.Printf("[-] 读取代理节点文件错误,至少需要一个代理地址\n")
+			return
+		}
+		addr := strings.Split(list[0], " ")
+		// 设置一级代理服务器地址
+		base.DstPort, err = strconv.Atoi(strings.ReplaceAll(addr[1], "\r\n", ""))
+		base.DstAddr = fmt.Sprintf("%s:%d", addr[0], base.DstPort)
+
+		// 移除一级代理服务器信息
+		list = append(list[:0], list[1:]...)
 		content := strings.Join(list, ",")
+		content = strings.ReplaceAll(content, "\r\n", "")
 		log.Printf("[+] 读取节点列表文件: %s\n", content)
 		// 配置协议
 		size := utils.Int16ToBytes(int16(len(content)))
-		written := bytes.Join([][]byte{[]byte("size"), size, []byte(content)}, []byte(""))
-		// 发送数据
-		netForward, err := connectRemoteHost(base, index)
+		written := bytes.Join([][]byte{[]byte(model.ProtocolHeader), size, []byte(content)}, []byte(""))
+		// 得到代理服务器连接，发送余剩节点数据
+		netForward, err := getRemoteConnect(base, index)
+		if err != nil {
+			log.Printf("[-] 连接到%s错误: %s\n", base.DstAddr, err.Error())
+			return
+		}
 		_, err = netForward.Write(written)
 		if err != nil {
 			log.Printf("[-] 发送节点列表信息错误: %s\n", err.Error())
@@ -72,7 +90,7 @@ func handleForward(accept net.Conn, base *model.ConfigBase, index string) {
 
 	var netForward net.Conn
 	var err error
-	netForward, err = connectRemoteHost(base, index)
+	netForward, err = getRemoteConnect(base, index)
 
 	if err != nil {
 		log.Printf("[x] 连接端口%d错误:%s\n", base.DstPort, err.Error())
@@ -86,12 +104,12 @@ func handleForward(accept net.Conn, base *model.ConfigBase, index string) {
 	if base.UseTLS {
 		go func() {
 			defer wg.Done()
-			client.OtherWayForward(netForward, accept)
+			_, _ = client.OtherWayForward(netForward, accept)
 		}()
 
 		go func() {
 			defer wg.Done()
-			client.OtherWayForward(accept, netForward)
+			_, _ = client.OtherWayForward(accept, netForward)
 		}()
 
 	} else {
@@ -104,14 +122,14 @@ func handleForward(accept net.Conn, base *model.ConfigBase, index string) {
 
 func NormalForward(src, dst net.Conn, wg *sync.WaitGroup) {
 	defer wg.Done()
-	written, err := io.Copy(dst, src)
+	_, err := io.Copy(dst, src)
 	if err != nil {
 		log.Printf("[x] 流量转发错误:%s\n", err.Error())
 	}
-	log.Printf("%s -> %s  %d/bytes", dst.RemoteAddr(), src.RemoteAddr(), written)
+	// log.Printf("%s -> %s  %d/bytes", dst.RemoteAddr(), src.RemoteAddr(), written)
 }
 
-func connectRemoteHost(base *model.ConfigBase, index string) (netForward net.Conn, err error) {
+func getRemoteConnect(base *model.ConfigBase, index string) (netForward net.Conn, err error) {
 	if base.UseTLS && index != "1" {
 		if index == "2" {
 			config = client.ConfigClientTLS()
@@ -129,8 +147,11 @@ func connectRemoteHost(base *model.ConfigBase, index string) (netForward net.Con
 }
 
 func readProxyNodeConfigFile() (list []string) {
-	utils.ReadLine("proxy_node", func(bytes []byte) {
-		list = append(list, string(bytes))
+	_ = utils.ReadLine("proxy_node", func(bytes []byte) {
+		line := string(bytes)
+		if line != "\r\n" && line != "" {
+			list = append(list, line)
+		}
 	})
 
 	return list

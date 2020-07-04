@@ -58,39 +58,41 @@ func StartProxy(base *model.ConfigBase) {
 
 func handleProxyService(accept net.Conn, base *model.ConfigBase) {
 	defer accept.Close()
-	buf := make([]byte, 4)
+	headerBuf := make([]byte, 4)
 	var list []string
 
-	if nextNode == nil {
-		accept.Read(buf)
-		if string(buf) == "size" {
-			log.Printf("[+] 开始接收节点列表\n")
-			list = handleReceivingDataProtocol(accept, buf)
-		} else {
-			log.Printf("[!] 过滤未发送节点信息的连接\n")
-			return
-		}
+	_, _ = accept.Read(headerBuf)
+	if string(headerBuf) == model.ProtocolHeader {
+		log.Printf("[+] 开始接收节点列表\n")
+		list = handleReceivingDataProtocol(accept)
 
 		if exportNode {
 			log.Printf("[+] 接收完毕，当前为出口节点\n")
+			return
 		} else {
 			log.Printf("[+] 接收完毕，当前为中转节点\n")
 		}
+		sendNode = false
 	}
 
 	// 长度0，即为出口节点
 	if exportNode {
-		handleExportNodeConnection(accept)
+		handleExportNodeConnection(accept, headerBuf, base)
 	} else {
-		handleConnectionForward(accept, list, base)
+		if nextNode == nil {
+			log.Printf("[!] 未设置节点,过滤数据连接\n")
+			return
+		}
+		handleConnectionForward(accept, headerBuf, list, base)
 	}
 
 }
 
-func handleReceivingDataProtocol(accept net.Conn, buf []byte) (list []string) {
+func handleReceivingDataProtocol(accept net.Conn) (list []string) {
 	nextNode = new(model.NextProxyNode)
+	buf := make([]byte, 4)
 	// 读取数据长度
-	accept.Read(buf)
+	_, _ = accept.Read(buf)
 	// []byte转int16
 	size := utils.BytesToInt16(buf)
 	// 最后一个节点
@@ -100,7 +102,7 @@ func handleReceivingDataProtocol(accept net.Conn, buf []byte) (list []string) {
 	}
 	// 读取下个节点信息
 	buf = make([]byte, size)
-	accept.Read(buf)
+	_, _ = accept.Read(buf)
 	content := string(buf)
 	log.Printf("[+] 节点列表: %s\n", content)
 	// 切割存入结构体
@@ -115,7 +117,7 @@ func handleReceivingDataProtocol(accept net.Conn, buf []byte) (list []string) {
 	return list
 }
 
-func handleConnectionForward(accept net.Conn, list []string, base *model.ConfigBase) {
+func handleConnectionForward(accept net.Conn, buf []byte, list []string, base *model.ConfigBase) {
 	var netForward net.Conn
 	var err error
 
@@ -146,7 +148,7 @@ func handleConnectionForward(accept net.Conn, list []string, base *model.ConfigB
 			size = utils.Int16ToBytes(int16(len(content)))
 		}
 
-		written := bytes.Join([][]byte{[]byte("size"), size, []byte(content)}, []byte(""))
+		written := bytes.Join([][]byte{[]byte(model.ProtocolHeader), size, []byte(content)}, []byte(""))
 		_, err = netForward.Write(written)
 		if err != nil {
 			log.Printf("[-] 传输余剩节点信息错误\n")
@@ -157,46 +159,34 @@ func handleConnectionForward(accept net.Conn, list []string, base *model.ConfigB
 		}
 
 		sendNode = true
+	} else {
+		_, _ = netForward.Write(buf)
 	}
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
 
-	if base.UseTLS {
-		go func() {
-			defer wg.Done()
-			client.OtherWayForward(netForward, accept)
-		}()
-
-		go func() {
-			defer wg.Done()
-			client.OtherWayForward(accept, netForward)
-		}()
-
-	} else {
-		go forward.NormalForward(netForward, accept, wg)
-		go forward.NormalForward(accept, netForward, wg)
-	}
+	go forward.NormalForward(netForward, accept, wg)
+	go forward.NormalForward(accept, netForward, wg)
 
 	wg.Wait()
 }
 
-func handleExportNodeConnection(accept net.Conn) {
+func handleExportNodeConnection(accept net.Conn, headerBuf []byte, base *model.ConfigBase) {
 	defer accept.Close()
-	buf := make([]byte, 1024)
-	n, err := accept.Read(buf)
-	if err != nil && err != io.EOF {
-		log.Printf("[-] 读取数据流错误%s\n", err.Error())
-		return
-	}
 
 	// 当为socks5协议
-	if buf[0] == 0x05 {
+	if headerBuf[0] == 0x05 {
 		// 0x05代表socks5协议，0x00代表服务器不需要验证
-		accept.Write([]byte{0x05, 0x00})
-		n, err = accept.Read(buf)
+		_, _ = accept.Write([]byte{0x05, 0x00})
+		buf := make([]byte, 1024)
+		n, err := accept.Read(buf)
+		if err != nil && err != io.EOF {
+			log.Printf("[-] 读取数据流错误%s\n", err.Error())
+			return
+		}
 		host, port := protocol.ParsingSocks5GetIpAndPort(buf, n)
-		// log.Printf("connect to %s:%s", host, port)
+		log.Printf("connect to %s:%s", host, port)
 
 		target, err := net.Dial("tcp", net.JoinHostPort(host, port))
 
@@ -206,7 +196,7 @@ func handleExportNodeConnection(accept net.Conn) {
 		}
 		defer target.Close()
 		//响应客户端连接成功
-		accept.Write([]byte{0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+		_, _ = accept.Write([]byte{0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
 
 		wg := new(sync.WaitGroup)
 		wg.Add(2)

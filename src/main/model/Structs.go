@@ -1,5 +1,8 @@
 package model
 
+// 协议头标识
+var ProtocolHeader = "size"
+
 type ConfigBase struct {
 	UseTLS           bool
 	SrcAddr, DstAddr string

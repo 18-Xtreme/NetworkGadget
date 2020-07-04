@@ -29,8 +29,9 @@ func handleClientRequest(client net.Conn) {
 	defer client.Close()
 	buf := make([]byte, 1024)
 	n, err := client.Read(buf)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		log.Panic(err)
+		return
 	}
 
 	// 当为socks5协议

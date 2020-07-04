@@ -51,6 +51,7 @@ func ParsingSocks5GetIpAndPort(buf []byte, len int) (host, port string) {
 		host = net.IPv4(buf[4], buf[5], buf[6], buf[7]).String()
 	// 域名信息
 	case 0x03:
+		//b[4]表示域名的长度
 		host = string(buf[5 : len-2])
 	// Ipv6
 	case 0x04:

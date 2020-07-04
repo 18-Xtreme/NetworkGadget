@@ -41,6 +41,56 @@ import (
 
 	例如：[]byte{0x05, 0x00} 即无需验证
 
+	+---------+---------+---------+---------+------------+------------+
+	|   VER	  |	  CMD   |   RSV   |   ATYP  |  DST.ADDR  |  DST.PORT  |
+	+---------+---------+---------+---------+------------+------------+
+	|    1	  |	   1    |  X'00'  |    1    |  Variable  |      2     |
+	+---------+---------+---------+---------+------------+------------+
+
+	VER: Socket的版本，Soket5默认为0x05，其值长度为1个字节
+	CMD: 客户端请求的类型，值长度也是1个字节，有三种类型:
+		CONNECT X'01'
+		BIND X'02'
+		UDP ASSOCIATE X'03'
+
+	RSV: 保留字，值长度为1个字节
+	ATYP: 请求的远程服务器地址类型，值长度1个字节，有三种类型:
+		IP V4 address: X'01'
+		DOMAINNAME: X'03'
+		IP V6 address: X'04'
+
+	DST.ADDR: 远程服务器的地址，根据ATYP进行解析，值长度不定。
+	DST.PORT: 远程服务器的端口，要访问哪个端口的意思，值长度2个字节
+
+
+
+	+---------+---------+---------+---------+------------+------------+
+	|   VER	  |	  REP   |   RSV   |   ATYP  |  BND.ADDR  |  BND.PORT  |
+	+---------+---------+---------+---------+------------+------------+
+	|    1	  |	   1    |  X'00'  |    1    |  Variable  |      2     |
+	+---------+---------+---------+---------+------------+------------+
+
+	VER: Socket的版本，Soket5默认为0x05，其值长度为1个字节
+	REP: 响应状态码，值长度也是1个字节:
+		X'00' succeeded
+		X'01' general SOCKS server failure
+		X'02' connection not allowed by ruleset
+		X'03' Network unreachable
+		X'04' Host unreachable
+		X'05' Connection refused
+		X'06' TTL expired
+		X'07' Command not supported
+		X'08' Address type not supported
+		X'09' to X’FF’ unassigned
+
+	RSV: 保留字，值长度为1个字节
+	ATYP: 请求的远程服务器地址类型，值长度1个字节，有三种类型:
+		IP V4 address: X'01'
+		DOMAINNAME: X'03'
+		IP V6 address: X'04'
+
+	BND.ADDR: 绑定地址，值长度不定。
+	BND.PORT: 绑定端口，值长度2个字节
 */
 
 // 解析socks5协议获取ip和port

@@ -1,14 +1,10 @@
-### NetworkGadget
-
-<hr/>
+# NetworkGadget
 
 类似lcx + proxy的小工具  
 
 
 
-### 实现功能
-
-<hr/>
+# 实现功能
 
 1.本地端口转发  
 2.内网穿刺  
@@ -20,18 +16,16 @@
 
 使用代理时，需要创建'proxy_node'文件.  
 格式如下:  
-[ip] [port]
+<ip> <port>  
 101.23.16.77 1234  
 
 
-![1](https://i.niupic.com/images/2020/07/06/8mYM.png "run")
-<img src="" alt="" width="833" height="399" data-load="full" style="">
+
+<img src="https://i.niupic.com/images/2020/07/06/8mYM.png" alt="" width="833" height="399" data-load="full" style="">
 
 
 
-### 编译
-
-<hr/>
+# 编译
 
 ```
 cd <文件目录>
@@ -43,8 +37,6 @@ go build -i -o target/ng NetworkGadget/src/main
 
 
 ### 使用说明
-
-<hr/>
 
 参数搭配(一)：
 
@@ -90,9 +82,7 @@ go build -i -o target/ng NetworkGadget/src/main
 
 
 
-### 代理功能的骚操作
-
-<hr/>
+#代理功能的骚操作
 
 ​	比如有内网机器A|B，服务器S
 

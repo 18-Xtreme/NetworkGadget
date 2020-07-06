@@ -72,13 +72,14 @@ go build -i -o target/ng NetworkGadget/src/main
 
 
 
-特别说明 ng -foward --tls 1|2|3 
+特别说明 ng -foward --tls <1|2|3>
 
 	ng -forward --tls 1 1234 x.x.x.x:3389	即1234端口收到的数据必须是加密过后的数据且
 
 	ng -forward --tls 2 1234 x.x.x.x:3389	即连接到3389端口的数据都进行加密
 
  	ng -forward --tls 3 1234 x.x.x.x:3389 	连个端口的连接都进行加密处理
+
 
 
 

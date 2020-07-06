@@ -82,7 +82,7 @@ func start() {
 
 		if os.Args[1] == "-proxy" {
 			proxy.StartProxy(base)
-		} else if os.Args[1] == "-proxy--local" {
+		} else if os.Args[1] == "--proxy-local" {
 			forward.ListenPortToForwardConnect(base, index, true)
 		}
 	} else {
@@ -94,7 +94,7 @@ func start() {
 
 func usage() {
 	fmt.Println("[帮助手册:]")
-	fmt.Println("  ng -<forward|listen|connect> <选项>")
+	fmt.Println("  ng -<forward|listen|connect|proxy> <选项>")
 	fmt.Println("\n[选项:]")
 	fmt.Println("  -forward [--tls (1|2|3)] <监听端口> <IP|转发端口>")
 	fmt.Println("  -listen [--tls] <监听端口> <转发端口>")

@@ -1,11 +1,11 @@
 ### NetworkGadget
----
+<hr/>
 类似lcx + proxy的小工具  
 
 
 
 ### 实现功能
----
+<hr/>
 1.本地端口转发  
 2.内网穿刺  
 3.tcp代理(socks5)
@@ -16,7 +16,7 @@
 
 使用代理时，需要创建'proxy_node'文件.  
 格式如下:  
-<ip> <port>  
+[ip] [port]
 101.23.16.77 1234  
 
 
@@ -26,7 +26,7 @@
 
 
 ### 编译
----
+<hr/>
 ```
 cd <文件目录>
 go build -i -o target/ng NetworkGadget/src/main
@@ -37,7 +37,7 @@ go build -i -o target/ng NetworkGadget/src/main
 
 
 ### 使用说明
----
+<hr/>
 参数搭配(一)：
 
 ​	ng -<listen|forward>

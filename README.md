@@ -36,11 +36,11 @@ go build -i -o target/ng NetworkGadget/src/main
 
 
 
-### 使用说明
+# 使用说明
 
 参数搭配(一)：
 
-  ng -<listen|forward>
+  	ng -<listen|forward>
 
 	ng -listen 1234 3389
 
@@ -78,7 +78,7 @@ go build -i -o target/ng NetworkGadget/src/main
 
 	ng -forward --tls 2 1234 x.x.x.x:3389	即连接到3389端口的数据都进行加密
 
-  ng -forward --tls 3 1234 x.x.x.x:3389 	连个端口的连接都进行加密处理
+ 	ng -forward --tls 3 1234 x.x.x.x:3389 	连个端口的连接都进行加密处理
 
 
 

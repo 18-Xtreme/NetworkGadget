@@ -13,11 +13,11 @@
 > ps：可以执行build_tls.sh文件，生成证书加密流量.
 
 <br/>
-使用代理时，需要创建'proxy_node'文件.  
-格式如下:  
-{ip port}  
-101.23.16.77 1234  
-
+使用代理时，需要创建'proxy_node'文件.<br/>
+格式如下:<br/>
+{ip port}<br/>
+101.23.16.77 1234
+<br/>
 
 
 <img src="https://i.niupic.com/images/2020/07/06/8mYM.png" alt="" width="833" height="399" data-load="full" style="">

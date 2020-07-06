@@ -64,7 +64,7 @@ func handleProxyService(accept net.Conn, base *model.ConfigBase) {
 	_, _ = accept.Read(headerBuf)
 	if string(headerBuf) == model.ProtocolHeader {
 		log.Printf("[+] 开始接收节点列表\n")
-		list = handleReceivingDataProtocol(accept)
+		list = handleReceivingDataProtocol(accept, base)
 
 		if exportNode {
 			log.Printf("[+] 接收完毕，当前为出口节点\n")
@@ -88,7 +88,7 @@ func handleProxyService(accept net.Conn, base *model.ConfigBase) {
 
 }
 
-func handleReceivingDataProtocol(accept net.Conn) (list []string) {
+func handleReceivingDataProtocol(accept net.Conn, base *model.ConfigBase) (list []string) {
 	nextNode = new(model.NextProxyNode)
 	buf := make([]byte, 4)
 	// 读取数据长度
@@ -107,30 +107,26 @@ func handleReceivingDataProtocol(accept net.Conn) (list []string) {
 	log.Printf("[+] 节点列表: %s\n", content)
 	// 切割存入结构体
 	list = strings.Split(content, ",")
-	addr := strings.Split(list[0], " ")
-	nextNode.NodePort, _ = strconv.Atoi(addr[1])
-	nextNode.NodeAddr = fmt.Sprintf("%s:%d", addr[0], nextNode.NodePort)
-	log.Printf("[+] 下个节点信息:%v", nextNode)
-	// 移除当前节点
-	list = append(list[:0], list[1:]...)
-
+	for i, v := range list {
+		addr := strings.Split(v, " ")
+		nextNode.NodePort, _ = strconv.Atoi(addr[1])
+		nextNode.NodeAddr = fmt.Sprintf("%s:%d", addr[0], nextNode.NodePort)
+		n, err := getNextNodeConnect(base)
+		if err != nil {
+			log.Printf("[!] {%s}代理节点失效,切换节点中... \n", nextNode.NodeAddr)
+			continue
+		}
+		log.Printf("[+] 下个节点信息:%v", nextNode)
+		// 移除失效节点
+		list = list[i:]
+		_ = n.Close()
+		break
+	}
 	return list
 }
 
 func handleConnectionForward(accept net.Conn, buf []byte, list []string, base *model.ConfigBase) {
-	var netForward net.Conn
-	var err error
-
-	if base.UseTLS {
-		config = client.ConfigClientTLS()
-		if config == nil {
-			nextNode = nil
-			return
-		}
-		netForward, err = tls.Dial("tcp", nextNode.NodeAddr, config)
-	} else {
-		netForward, err = net.Dial("tcp", nextNode.NodeAddr)
-	}
+	netForward, err := getNextNodeConnect(base)
 
 	if err != nil {
 		log.Printf("[-] 连接%s节点错误: %s\n", nextNode.NodeAddr, err.Error())
@@ -206,4 +202,19 @@ func handleExportNodeConnection(accept net.Conn, headerBuf []byte, base *model.C
 
 		wg.Wait()
 	}
+}
+
+func getNextNodeConnect(base *model.ConfigBase) (netForward net.Conn, err error) {
+	if base.UseTLS {
+		config = client.ConfigClientTLS()
+		if config == nil {
+			nextNode = nil
+			return
+		}
+		netForward, err = tls.Dial("tcp", nextNode.NodeAddr, config)
+	} else {
+		netForward, err = net.Dial("tcp", nextNode.NodeAddr)
+	}
+
+	return netForward, err
 }

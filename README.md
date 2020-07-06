@@ -39,9 +39,9 @@ go build -i -o target/ng NetworkGadget/src/main
 参数搭配(一)：
 
 ```
-ng -<listen|forward>
+ng -<forward>
 
-ng -listen 1234 3389
+ng -forward 1234 3389
 
 ng -forward 1235 x.x.x.x:1234
 

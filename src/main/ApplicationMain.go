@@ -42,7 +42,7 @@ func start() {
 		targetAddr = os.Args[t]
 		fillStructure(base)
 		forward.ListenPortToForwardConnect(base, index, false)
-	} else if (len(os.Args) == 4 || len(os.Args) == 5) && os.Args[1] != "-proxy" && os.Args[1] != "-proxy--local" {
+	} else if (len(os.Args) == 4 || len(os.Args) == 5) && os.Args[1] != "-proxy" && os.Args[1] != "--proxy-local" {
 		if len(os.Args) == 5 {
 			if os.Args[2] != "--tls" {
 				fmt.Printf("[-] 错误参数\n")

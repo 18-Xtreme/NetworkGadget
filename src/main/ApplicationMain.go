@@ -6,10 +6,13 @@ import (
 	"NetworkGadget/src/main/model"
 	"NetworkGadget/src/main/proxy"
 	"NetworkGadget/src/main/server"
+	"NetworkGadget/src/test"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -18,7 +21,14 @@ var (
 )
 
 func main() {
-	start()
+	//start()
+	wait := make(chan bool)
+	_, err := test.Forward(":51006", "192.168.3.215:5900", time.Second*10)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	<-wait
 }
 
 func start() {

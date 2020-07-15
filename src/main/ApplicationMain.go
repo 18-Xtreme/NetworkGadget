@@ -6,13 +6,10 @@ import (
 	"NetworkGadget/src/main/model"
 	"NetworkGadget/src/main/proxy"
 	"NetworkGadget/src/main/server"
-	"NetworkGadget/src/test"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 var (
@@ -21,41 +18,55 @@ var (
 )
 
 func main() {
-	//start()
-	wait := make(chan bool)
-	_, err := test.Forward(":51006", "192.168.3.215:5900", time.Second*10)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	<-wait
+	start()
+	/*
+		wait := make(chan bool)
+		_, err := test.Forward(":51006", "192.168.3.215:5900", test.DefaultTimeout)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		<-wait
+	*/
+
+	// test.ForwardUDP(":51006", "192.168.3.215:5900")
 }
 
 func start() {
 	base := new(model.ConfigBase)
 	base.UseTLS = false
+	base.IsUdp = false
 	l, t := 2, 3
 	var index = "0"
-	if (len(os.Args) == 4 || len(os.Args) == 6) && os.Args[1] == "-forward" {
+	if (len(os.Args) >= 4 || len(os.Args) <= 6) && os.Args[1] == "-forward" {
 		if len(os.Args) == 6 {
-			if os.Args[2] != "--tls" {
-				fmt.Printf("[-] 错误参数\n")
-				os.Exit(1)
-			} else {
+			if os.Args[2] == "--tls" {
 				base.UseTLS = true
 				index = os.Args[3]
 				l, t = 4, 5
+			} else {
+				fmt.Printf("[-] 错误参数\n")
+				usage()
+				os.Exit(1)
 			}
+		} else if len(os.Args) == 5 && os.Args[2] == "--udp" {
+			base.IsUdp = true
+			l, t = 3, 4
 		}
 
 		localAddr = os.Args[l]
 		targetAddr = os.Args[t]
 		fillStructure(base)
-		forward.ListenPortToForwardConnect(base, index, false)
+		if base.IsUdp {
+			forward.UdpForward(base)
+		} else {
+			forward.ListenPortToForwardConnect(base, index, false)
+		}
 	} else if (len(os.Args) == 4 || len(os.Args) == 5) && os.Args[1] != "-proxy" && os.Args[1] != "--proxy-local" {
 		if len(os.Args) == 5 {
 			if os.Args[2] != "--tls" {
 				fmt.Printf("[-] 错误参数\n")
+				usage()
 				os.Exit(1)
 			} else {
 				base.UseTLS = true
@@ -79,6 +90,7 @@ func start() {
 		if len(os.Args) == 4 {
 			if os.Args[2] != "--tls" {
 				fmt.Printf("[-] 错误参数\n")
+				usage()
 				os.Exit(1)
 			} else {
 				base.UseTLS = true
